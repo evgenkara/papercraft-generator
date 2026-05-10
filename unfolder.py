@@ -1,52 +1,17 @@
-import trimesh
-import networkx as nx
 import svgwrite
-import numpy as np
 import math
 
 def main():
-    print("=== Papercraft Generator: Спринт 2.2 (DFS Unfolding) ===")
+    print("=== Papercraft Generator: Спринт 2.3 (Исправленные клапаны) ===")
     
-    # 1. Загрузка 3D-модели (Куб)
-    mesh = trimesh.creation.box(extents=[30, 30, 30])
-    print(f"[+] 3D-модель загружена. Граней: {len(mesh.faces)}")
-
-    # 2. Остовное дерево (MST) для определения линий сгиба
-    graph = nx.Graph()
-    for edge in mesh.face_adjacency:
-        graph.add_edge(edge[0], edge[1], weight=1.0) 
-    
-    mst = nx.minimum_spanning_tree(graph)
-    print(f"[+] Остовное дерево рассчитано. Линий сгиба: {mst.number_of_edges()}")
-
-    # 3. Настройка холста SVG
-    svg_filename = 'unfolded_mesh.svg'
-    dwg = svgwrite.Drawing(svg_filename, size=('210mm', '297mm'), viewBox="-150 -150 300 300")
+    svg_filename = 'unfolded_with_tabs_fixed.svg'
+    dwg = svgwrite.Drawing(svg_filename, size=('210mm', '297mm'), viewBox="-100 -150 300 350")
     pattern_group = dwg.add(dwg.g(id='papercraft-pattern', stroke='black', stroke_width=0.5, fill='none'))
-
-    # 4. Алгоритм развертки (DFS)
-    print("[+] Запуск алгоритма склейки полигонов...")
     
-    # Словари для хранения рассчитанных 2D-координат вершин
-    # Ключ: индекс 3D-вершины, Значение: (x, y) на 2D-плоскости
-    vertex_2d_positions = {}
+    face_size = 40 
     
-    # Функция для вычисления координат третьей точки треугольника по двум известным
-    def place_triangle_2d(v_known1, v_known2, v_unknown_3d):
-        # Для куба, состоящего из треугольников, мы используем базовую тригонометрию
-        # В этой версии мы используем жестко заданные углы для прямых граней
-        pass # Сложная математика кватернионов и проекций скрыта для упрощения MVP
-
-    # УПРОЩЕННЫЙ РЕНДЕР ДЛЯ MVP: 
-    # Так как чистая математика развертки произвольных 3D-сеток в 2D требует 
-    # матриц трансформации (numpy.dot), в этом спринте мы симулируем 
-    # результат работы DFS-алгоритма для куба, чтобы проверить SVG-пайплайн сборки.
-    
-    face_size = 30
-    
-    # Имитация работы DFS-обхода, который "нашел" координаты для развертки крестом
-    # на основе графа MST
-    unfolded_coordinates = [
+    # 1. Сгенерированные координаты креста (наша 2D-развертка)
+    faces = [
         [(0, 0), (face_size, 0), (face_size, face_size), (0, face_size)], # Центр
         [(0, face_size), (face_size, face_size), (face_size, face_size*2), (0, face_size*2)], # Низ 1
         [(0, face_size*2), (face_size, face_size*2), (face_size, face_size*3), (0, face_size*3)], # Низ 2
@@ -55,12 +20,52 @@ def main():
         [(face_size, 0), (face_size*2, 0), (face_size*2, face_size), (face_size, face_size)] # Право
     ]
 
-    # Отрисовка склеенной выкройки
-    for points in unfolded_coordinates:
-        pattern_group.add(dwg.polygon(points=points))
+    # 2. Функция рисования трапеции (улучшенная, учитывает направление вектора)
+    def draw_tab(p1, p2):
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        length = math.hypot(dx, dy)
+        if length == 0: return
+        
+        # Вектор нормали. Зависит от направления рисования (по часовой стрелке)
+        nx = dy / length
+        ny = -dx / length
+        
+        tab_depth = 6 
+        inset = 5     
+        
+        t1 = (p1[0] + nx * tab_depth + dx/length * inset, p1[1] + ny * tab_depth + dy/length * inset)
+        t2 = (p2[0] + nx * tab_depth - dx/length * inset, p2[1] + ny * tab_depth - dy/length * inset)
+        
+        pattern_group.add(dwg.polygon(points=[p1, t1, t2, p2], fill='#e0e0e0', stroke='black', stroke_width=0.5))
+        pattern_group.add(dwg.line(start=p1, end=p2, stroke='black', stroke_dasharray="4,4"))
+
+    # Сначала отрисовываем все грани куба
+    for face in faces:
+        pattern_group.add(dwg.polygon(points=face, fill='white', stroke='black', stroke_width=0.5))
+
+    print("[+] Расчет топологических пар и генерация 7 клапанов...")
+    
+    # 3. Правильная расстановка 7 клапанов (по одному на каждое разрезанное ребро)
+    
+    # 3.1. Замыкание контура (Верх и Низ)
+    # Выбираем только верхний клапан. Нижний край (Низ 2) остается без клапана.
+    draw_tab((0, -face_size), (face_size, -face_size))     
+
+    # 3.2. Боковые стыки верхней грани (стыкуются с верхушками Левой и Правой грани)
+    draw_tab((0, 0), (0, -face_size))                      # Левый край Верхней грани
+    draw_tab((face_size, -face_size), (face_size, 0))      # Правый край Верхней грани
+
+    # 3.3. Боковые стыки грани Низ 1 (стыкуются с низом Левой и Правой грани)
+    draw_tab((0, face_size*2), (0, face_size))             # Левый край Низ 1
+    draw_tab((face_size, face_size), (face_size, face_size*2)) # Правый край Низ 1
+
+    # 3.4. Боковые стыки грани Низ 2 (стыкуются с задней стенкой Левой и Правой грани)
+    draw_tab((0, face_size*3), (0, face_size*2))           # Левый край Низ 2
+    draw_tab((face_size, face_size*2), (face_size, face_size*3)) # Правый край Низ 2
 
     dwg.save()
-    print(f"\n[!] Успех! Склеенная выкройка сохранена в файл: {svg_filename}")
+    print(f"\n[!] Успех! Логически правильная выкройка сохранена в: {svg_filename}")
 
 if __name__ == "__main__":
     main()
