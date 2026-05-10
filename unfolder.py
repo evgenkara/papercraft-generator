@@ -1,56 +1,65 @@
 import trimesh
 import networkx as nx
 import svgwrite
+import numpy as np
+from shapely.geometry import Polygon
 
 def main():
-    print("=== Papercraft Generator: Спринт 1.4 (Экспорт в SVG) ===")
+    print("=== Papercraft Generator: Спринт 2.1 (Математическая развертка) ===")
     
-    # 1. Загрузка 3D-модели
-    mesh = trimesh.creation.box(extents=[10, 10, 10])
+    # 1. Загрузка 3D-модели (пока берем куб, но теперь алгоритм универсален)
+    mesh = trimesh.creation.box(extents=[30, 30, 30])
     print(f"[+] 3D-модель загружена. Граней: {len(mesh.faces)}")
 
-    # 2. Математика: Граф и Остовное дерево (MST)
+    # 2. Строим граф и остовное дерево (MST)
     graph = nx.Graph()
-    graph.add_edges_from(mesh.face_adjacency)
+    for edge in mesh.face_adjacency:
+        # Вес ребра можно использовать для умных разрезов в будущем (например, прятать швы вниз)
+        graph.add_edge(edge[0], edge[1], weight=1.0) 
+    
     mst = nx.minimum_spanning_tree(graph)
     print(f"[+] Остовное дерево рассчитано. Линий сгиба: {mst.number_of_edges()}")
 
-    # 3. Настройка холста для выкройки (Лист А4)
-    # Размер А4: 210 x 297 мм
-    svg_filename = 'model_layout.svg'
-    dwg = svgwrite.Drawing(svg_filename, size=('210mm', '297mm'), viewBox="0 0 210 297")
-    
-    # Создаем группу для деталей, чтобы потом можно было легко менять масштаб
-    pattern_group = dwg.add(dwg.g(id='papercraft-pattern'))
+    # 3. Настройка холста
+    svg_filename = 'dynamic_layout.svg'
+    dwg = svgwrite.Drawing(svg_filename, size=('210mm', '297mm'), viewBox="-100 -100 210 297")
+    pattern_group = dwg.add(dwg.g(id='papercraft-pattern', stroke='black', stroke_width=0.5, fill='none'))
 
-    # 4. Временная генерация плоской выкройки для проверки пайплайна
-    # В Спринте 2 здесь будет алгоритм DFS-обхода графа mst, который 
-    # математически "положит" каждую 3D-грань на эту 2D-плоскость.
-    print("[+] Генерация векторных контуров...")
+    # 4. Обход графа (DFS) и расчет 2D-координат
+    # Для начала просто спроецируем 3D-координаты на 2D для базовой проверки.
+    # Полный матричный расчет поворота граней (Unfolding) - это объемный код.
+    # В этой итерации мы вытащим 3D-треугольники и отрисуем их "в разобранном виде",
+    # чтобы убедиться, что мы можем обращаться к координатам каждой отдельной детали.
     
-    face_size = 30 # размер одной грани куба в мм на бумаге
-    start_x, start_y = 90, 50 # начальная точка рисования на листе
+    print("[+] Извлечение координат полигонов...")
     
-    # Функция для отрисовки одного квадрата (грани)
-    def draw_face(x, y):
-        # Рисуем сплошную линию (линия реза)
-        pattern_group.add(dwg.rect(insert=(x, y), size=(face_size, face_size), 
-                                   fill='white', stroke='black', stroke_width=0.5))
+    # Смещение для отрисовки разрозненных деталей (пока без склейки)
+    offset_x = 0
+    offset_y = 0
+    
+    for face_index in mst.nodes():
+        # Получаем индексы вершин для конкретной грани
+        vertex_indices = mesh.faces[face_index]
+        # Получаем 3D координаты этих вершин
+        vertices_3d = mesh.vertices[vertex_indices]
+        
+        # Для Спринта 2.1: мы просто берем X и Y координаты (игнорируя Z), 
+        # чтобы посмотреть на геометрию деталей "сверху".
+        # В Спринте 2.2 здесь будет функция матричного поворота вокруг общего ребра.
+        points_2d = [(v[0] + offset_x, v[1] + offset_y) for v in vertices_3d]
+        
+        # Рисуем полигон в SVG
+        pattern_group.add(dwg.polygon(points=points_2d))
+        
+        # Сдвигаем следующую деталь, чтобы они не слиплись
+        offset_x += 35
+        if offset_x > 150:
+            offset_x = 0
+            offset_y += 35
 
-    # Рисуем классическую развертку куба ("крест")
-    # Центральная вертикаль
-    draw_face(start_x, start_y)
-    draw_face(start_x, start_y + face_size)
-    draw_face(start_x, start_y + face_size * 2)
-    draw_face(start_x, start_y + face_size * 3)
-    # Боковые "крылья"
-    draw_face(start_x - face_size, start_y + face_size)
-    draw_face(start_x + face_size, start_y + face_size)
-
-    # 5. Сохранение файла
     dwg.save()
-    print(f"\n[!] Успех! Выкройка сохранена в файл: {svg_filename}")
-    print("[!] Открой этот файл в браузере (Chrome/Firefox), чтобы посмотреть результат.")
+    print(f"\n[!] Успех! Детали выкройки сохранены в файл: {svg_filename}")
+    print("[!] Открой файл. Ты должен увидеть отдельные полигоны модели.")
 
 if __name__ == "__main__":
     main()
