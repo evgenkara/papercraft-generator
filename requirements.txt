@@ -1,6 +1,9 @@
+asgiref==3.11.1
+Django==6.0.5
 networkx==3.6.1
 numpy==2.4.4
 rtree==1.4.1
 shapely==2.1.2
+sqlparse==0.5.5
 svgwrite==1.4.3
 trimesh==4.12.2
