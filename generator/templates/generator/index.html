@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Papercraft Generator PRO</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eef2f5; display: flex; margin: 0; height: 100vh; }
+        .sidebar { width: 300px; background: white; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .workspace { flex-grow: 1; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 20px; }
+        .paper-sheet { background: white; width: 210mm; height: 297mm; box-shadow: 0 10px 20px rgba(0,0,0,0.15); padding: 10mm; box-sizing: border-box; }
+        h2 { margin-top: 0; color: #333; }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type=range] { width: 100%; }
+        .value-display { font-size: 0.9em; color: #888; float: right; }
+        button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Настройки кузова</h2>
+        <p style="color: #666; font-size: 14px;">Параметрическая генерация фургона</p>
+        
+        <form method="GET" action="">
+            <div class="control-group">
+                <label>Ширина (W) <span class="value-display">{{ w }} мм</span></label>
+                <input type="range" name="w" min="20" max="80" value="{{ w }}">
+            </div>
+            <div class="control-group">
+                <label>Длина (D) <span class="value-display">{{ d }} мм</span></label>
+                <input type="range" name="d" min="30" max="100" value="{{ d }}">
+            </div>
+            <div class="control-group">
+                <label>Высота (H) <span class="value-display">{{ h }} мм</span></label>
+                <input type="range" name="h" min="10" max="60" value="{{ h }}">
+            </div>
+            <button type="submit">Сгенерировать</button>
+        </form>
+    </div>
+
+    <div class="workspace">
+        <div class="paper-sheet">
+            {{ svg_data|safe }}
+        </div>
+    </div>
+</body>
+</html>

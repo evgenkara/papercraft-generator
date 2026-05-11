@@ -1,31 +1,20 @@
-from django.http import HttpResponse
-from .utils import generate_cube_svg
+from django.shortcuts import render
+from .utils import generate_box_svg
 
 def index(request):
-    svg_data = generate_cube_svg()
+    # Получаем параметры из URL (или ставим значения по умолчанию)
+    w = int(request.GET.get('w', 40))
+    d = int(request.GET.get('d', 60))
+    h = int(request.GET.get('h', 30))
     
-    # Временный простой HTML прямо во View (позже перенесем в templates)
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-        <head>
-            <title>Papercraft MVP</title>
-            <style>
-                body {{ text-align: center; font-family: sans-serif; background-color: #f5f5f5; padding-top: 50px; }}
-                .paper-sheet {{ 
-                    background: white; width: 210mm; height: 297mm; 
-                    margin: 0 auto; box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
-                    padding: 20px; box-sizing: border-box;
-                }}
-            </style>
-        </head>
-        <body>
-            <h1>Генератор Papercraft (MVP)</h1>
-            <p>Динамическая генерация 2D-выкройки на сервере</p>
-            <div class="paper-sheet">
-                {svg_data}
-            </div>
-        </body>
-    </html>
-    """
-    return HttpResponse(html)
+    # Генерируем SVG с новыми размерами
+    svg_data = generate_box_svg(w=w, d=d, h=h)
+    
+    # Отправляем данные в шаблон HTML
+    context = {
+        'svg_data': svg_data,
+        'w': w,
+        'd': d,
+        'h': h,
+    }
+    return render(request, 'generator/index.html', context)
